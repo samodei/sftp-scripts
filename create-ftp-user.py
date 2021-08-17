@@ -9,8 +9,7 @@ import sys
 
 
 def check_dir(directory):
-    # Check if user's home directory exists. 
-    print(directory)
+    # Check if directory exists.
     dir_exists = os.path.isdir(directory)
 
     if dir_exists:
@@ -25,20 +24,24 @@ def create_dir(username, write):
     upload_dir = home_dir + "/upload"
     dir_exists = check_dir(home_dir)
     
-    if dir_exists:
-        print("Directory already exists.")
-    else:
-        print("Creating directory.")
+    if not dir_exists:
+        # This will probably never run since useradd will create the home directory.
+        print("Creating " + home_dir + "...\n")
         subprocess.run(['mkdir', '-p', home_dir])
-        subprocess.run(['chown', '-R', username + ':sftpusers', home_dir])
+        
+    # Change home_dir owner to root.
+    subprocess.run(['chown', '-R', 'root:sftpusers', home_dir])
     
+    # Create upload directory if granting write access.
     if write:
         upload_exists = check_dir(upload_dir)
 
         if upload_exists:
-            print("Upload directory exists.")
+            print(upload_dir + " already exists...\n")
+            subprocess.run(['chown', '-R', username + ':sftpusers', upload_dir])
         else:
-            print("Creating upload directory")
+            # Create upload_dir and change owner to that user.
+            print("Creating " + upload_dir + "...\n")
             subprocess.run(['mkdir', '-p', upload_dir])
             subprocess.run(['chown', '-R', username + ':sftpusers', upload_dir])
 
@@ -57,17 +60,22 @@ def create_user(username, write):
     user_exists = check_user(username)
 
     if user_exists:
-        print("User " + username + " already exists.")
+        print("User " + username + " already exists.\n")
     else:
-        print("Creating user " + username + "...")        
+        print("Creating user " + username + "...\n")        
         password = getpass.getpass()
 
-        if write:
-            create_dir(username, write)
-        else:
-            create_dir(username, write)
-            subprocess.run(['useradd', '-g', 'sftpusers', '-s', '/sbin/nologin', '-m', '-d', '/srv/ftp/' + username, username, '-p', password])
+        dir_exists = check_dir("/srv/ftp/" + username)
 
+        if dir_exists:
+            print("Directory /srv/ftp/" + username + " already exists.\n")
+        else:
+            # Create user.
+            subprocess.run(['useradd', '-g', 'sftpusers', '-s', '/sbin/nologin', 
+                '-m', '-d', '/srv/ftp/' + username, username, '-p', password])
+
+            # Create necessary directories.
+            create_dir(username, write)
 
 def main():
     # Create parser and parse arguments.
